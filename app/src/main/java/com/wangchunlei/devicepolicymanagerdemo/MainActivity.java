@@ -7,14 +7,19 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.PowerManager;
+import android.provider.Settings;
 import android.util.Log;
 import android.view.Menu;
 import android.view.MenuItem;
 
 
 public class MainActivity extends Activity {
-	private final String tag = "Ray";
+	private final String tag = "Ray";//注册应用到设备管理器中
+	private final String tag1 = "Ray1";//申请加入到应用白名单中
 
 	//设备管理器
 	private DevicePolicyManager devicePolicyManager;
@@ -94,6 +99,43 @@ public class MainActivity extends Activity {
 		}
 	}
 
+	/**
+	 * 申请加入应用白名单
+	 */
+	public void requestIgnoreBatteryOptimizations() {
+		try {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M && !isIgnoringBatteryOptimizations()) {
+				Intent intent = new Intent(Settings.ACTION_REQUEST_IGNORE_BATTERY_OPTIMIZATIONS);
+				intent.setData(Uri.parse("package:" + getPackageName()));
+				startActivityForResult(intent,1);
+			}
+		} catch (Exception e) {
+			e.printStackTrace();
+			DialogUtils.showDialog(this, "申请结果", e.getMessage()
+					, "知道了", new DialogInterface.OnClickListener() {
+						@Override
+						public void onClick(DialogInterface dialog, int which) {
+							dialog.dismiss();
+						}
+					}, "算了", null);
+		}
+	}
+
+	/**
+	 * 判断我们的应用是否在白名单中
+	 * @return
+	 */
+	private boolean isIgnoringBatteryOptimizations() {
+		boolean isIgnoring = false;
+		PowerManager powerManager = (PowerManager) getSystemService(Context.POWER_SERVICE);
+		if (powerManager != null) {
+			if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+				isIgnoring = powerManager.isIgnoringBatteryOptimizations(getPackageName());
+			}
+		}
+		return isIgnoring;
+	}
+
 	@Override
 	protected void onActivityResult(int requestCode, int resultCode, Intent data) {
 		super.onActivityResult(requestCode, resultCode, data);
@@ -130,25 +172,73 @@ public class MainActivity extends Activity {
 						});
 			}
 		}
+
+		if (1 == requestCode){
+			if (resultCode == RESULT_OK){
+				// 用户同意了
+				Log.i(tag1, "Enable it");
+				DialogUtils.showDialog(this, "申请结果", "同意了"
+						, "是", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.dismiss();
+							}
+						}, "否", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.dismiss();
+							}
+						});
+			} else {
+				Log.i(tag1, "Cancle it");
+				// 用户拒绝了
+				DialogUtils.showDialog(this, "申请结果", "拒绝了"
+						, "是", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.dismiss();
+							}
+						}, "否", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.dismiss();
+							}
+						});
+			}
+		}
 	}
 
 	@Override
 	public boolean onCreateOptionsMenu(Menu menu) {
-		// Inflate the menu; this adds items to the action bar if it is present.
 		getMenuInflater().inflate(R.menu.menu_main, menu);
 		return true;
 	}
 
 	@Override
 	public boolean onOptionsItemSelected(MenuItem item) {
-		// Handle action bar item clicks here. The action bar will
-		// automatically handle clicks on the Home/Up button, so long
-		// as you specify a parent activity in AndroidManifest.xml.
 		int id = item.getItemId();
 
-		//noinspection SimplifiableIfStatement
-		if (id == R.id.action_settings) {
+		if (id == R.id.action_dpm) {
 			registerDevicePolicyManager();
+			return true;
+		}
+		if (id == R.id.action_white) {
+			if (!isIgnoringBatteryOptimizations()){
+				requestIgnoreBatteryOptimizations();
+			} else {
+				DialogUtils.showDialog(this, "申请结果", "已成功申请白名单！"
+						, "是", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.dismiss();
+							}
+						}, "否", new DialogInterface.OnClickListener() {
+							@Override
+							public void onClick(DialogInterface dialog, int which) {
+								dialog.dismiss();
+							}
+						});
+			}
 			return true;
 		}
 
